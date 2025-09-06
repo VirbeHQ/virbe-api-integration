@@ -1,0 +1,280 @@
+---
+title: Conversation Message Endpoint
+description: This endpoint mimics the behavior expected by the Virbe `CustomEndpointService` for handling conversation AI messages.
+---
+
+# Conversation Message Endpoint
+
+This endpoint mimics the behavior expected by the Virbe `CustomEndpointService` for handling conversation AI messages.
+
+## Features
+
+- **Two Response Modes**:
+  - `stream` (default): Server-Sent Events for streaming responses
+  - `batch`: Batch response with all actions at once
+
+## Stream Endpoint
+
+`POST /conversation/message/stream`
+
+
+### Request Format
+
+```typescript
+POST /conversation/message/stream
+
+{
+  "id": "uuid",
+  "conversationId": "uuid",
+  "senderId": "user-id",
+  "action": {
+    "text": {
+      "text": "User message here",
+      "language": "en"
+    }
+  },
+  "profile": {
+    "id": "profile-id",
+    "languages": ["en", "es"]
+  },
+  "conversation": {
+    "id": "uuid"
+  },
+  "language": "en"
+}
+```
+
+### Response Format
+
+```
+Content-Type: text/event-stream
+
+data: {"engineEvent":{"state":"processing","flowId":"flow-123","nodeId":"node-456"}}
+
+data: {"text":{"text":"You said: \"Hello\". This is a sample response!","language":"en"}}
+
+data: {"toolCall":{"id":"tool-call-1","name":"get_weather","args":{"location":"San Francisco"},"result":{"temperature":72,"condition":"sunny"}}}
+
+data: {"customAction":{"name":"show_notification","value":{"message":"Processing complete!"}}}
+
+data: {"engineEvent":{"state":"completed","flowId":"flow-123","nodeId":"node-456","elapsedTime":2000}}
+```
+
+
+## Batch Endpoint
+
+`POST /conversation/message/batch`
+
+
+### Request Format
+
+```typescript
+POST /conversation/message/stream
+
+{
+  "id": "uuid",
+  "conversationId": "uuid",
+  "senderId": "user-id",
+  "action": {
+    "text": {
+      "text": "User message here",
+      "language": "en"
+    }
+  },
+  "profile": {
+    "id": "profile-id",
+    "languages": ["en", "es"]
+  },
+  "conversation": {
+    "id": "uuid"
+  },
+  "language": "en"
+}
+```
+
+```json
+[
+  {
+    "engineEvent": {
+      "state": "processing",
+      "flowId": "flow-123",
+      "nodeId": "node-456"
+    }
+  },
+  {
+    "text": {
+      "text": "You said: \"Hello\". This is a sample response!",
+      "language": "en"
+    }
+  },
+  {
+    "toolCall": {
+      "id": "tool-call-1",
+      "name": "get_weather",
+      "args": { "location": "San Francisco" },
+      "result": { "temperature": 72, "condition": "sunny" }
+    }
+  },
+  {
+    "customAction": {
+      "name": "show_notification",
+      "value": { "message": "Processing complete!" }
+    }
+  },
+  {
+    "engineEvent": {
+      "state": "completed",
+      "flowId": "flow-123",
+      "nodeId": "node-456",
+      "elapsedTime": 100
+    }
+  }
+]
+```
+
+## Action Types
+
+The endpoint can return various action types that match the `ConversationMessageActionDto` schema:
+
+### 1. Text Action
+```json
+{
+  "text": {
+    "text": "The response text",
+    "raw": "Optional raw text",
+    "html": "Optional HTML",
+    "ssml": "Optional SSML",
+    "language": "en"
+  }
+}
+```
+
+### 2. Engine Event
+```json
+{
+  "engineEvent": {
+    "state": "processing | completed | error",
+    "flowId": "flow-id",
+    "nodeId": "node-id",
+    "elapsedTime": 1000,
+    "llmCallName": "optional-name",
+    "metaData": {}
+  }
+}
+```
+
+### 3. Tool Call
+```json
+{
+  "toolCall": {
+    "id": "tool-id",
+    "name": "tool-name",
+    "toolId": "tool-identifier",
+    "args": { "param1": "value1" },
+    "result": { "output": "result" },
+    "error": null,
+    "type": "function"
+  }
+}
+```
+
+### 4. Custom Action
+```json
+{
+  "customAction": {
+    "name": "action-name",
+    "value": { "any": "data" }
+  }
+}
+```
+
+### 5. Signal
+```json
+{
+  "signal": {
+    "name": "signal-name",
+    "value": "optional-value"
+  }
+}
+```
+
+### 6. Variable Store
+```json
+{
+  "variableStore": {
+    "key": "variable-name",
+    "value": "any-value"
+  }
+}
+```
+
+### 7. UI Action
+```json
+{
+  "uiAction": {
+    "name": "virbe-payload-v3",
+    "value": {
+      "type": "buttons",
+      "timeoutMs": 10000,
+      "buttons": [
+        { "id": "btn-1", "label": "Click me" }
+      ]
+    }
+  }
+}
+```
+
+### 8. Flow Event
+```json
+{
+  "flowEvent": {
+    "type": "start | end | transition",
+    "exitStatus": "success | failure",
+    "exitDetails": "optional details",
+    "fromFlowId": "flow-id",
+    "toFlowId": "flow-id"
+  }
+}
+```
+
+## Testing
+
+Run the test script:
+
+```bash
+# Test SSE mode
+tsx test-conversation-endpoint.ts sse
+
+# Test JSON mode
+tsx test-conversation-endpoint.ts json
+```
+
+## CORS
+
+The endpoint is configured to accept requests from `http://localhost:4000`.
+
+## Integration with Virbe CustomEndpointService
+
+To use this endpoint with the Virbe service:
+
+```typescript
+const engine = {
+  id: 'engine-123',
+  credentials: {
+    url: 'http://localhost:3000/conversation/message',
+    token: 'optional-bearer-token', // Optional
+  },
+  configuration: {
+    // Custom configuration
+  },
+};
+
+// The service will automatically detect the response type based on Content-Type header
+await customEndpointService.sendMessage(engine, conversationMessageData, node);
+```
+
+The CustomEndpointService will:
+1. Send a POST request with conversation data
+2. Detect if response is `text/event-stream` (SSE) or JSON
+3. Parse and emit actions to the `conversationMessageData.subject`
+4. Handle errors appropriately
