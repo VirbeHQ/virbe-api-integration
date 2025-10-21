@@ -1,26 +1,11 @@
 import type {FastifyZodOpenApiSchema, FastifyZodOpenApiTypeProvider,} from 'fastify-zod-openapi';
-import * as z from 'zod/v4';
 import type {FastifyInstance} from "fastify";
-
-const conversationBodySchema = z.object({
-  id: z.string().uuid().optional(),
-  conversationId: z.string().uuid().optional(),
-  senderId: z.string(),
-  action: z.object({
-    text: z.object({
-      text: z.string(),
-      language: z.string().optional(),
-    }).optional(),
-  }),
-  profile: z.object({
-    id: z.string(),
-    languages: z.array(z.string()),
-  }).optional(),
-  conversation: z.object({
-    id: z.string().uuid(),
-  }).optional(),
-  language: z.string().optional(),
-});
+import {
+  ConversationInvokeEngineDtoSchema,
+  ConversationMessageActionDtoSchema,
+  ConversationMessageEngineEventState
+} from '@virbe/dtos/conversation';
+import {z} from "zod";
 
 export async function conversationRouter(app: FastifyInstance): Promise<void> {
   // SSE Endpoint - Streaming responses
@@ -31,7 +16,7 @@ export async function conversationRouter(app: FastifyInstance): Promise<void> {
       summary: 'Message stream',
       description: 'Handle conversation messages with Server-Sent Events (SSE) streaming',
       tags: ['conversation'],
-      body: conversationBodySchema,
+      body: ConversationInvokeEngineDtoSchema,
     } satisfies FastifyZodOpenApiSchema,
     handler: async (request, reply) => {
       const body = request.body as {
@@ -123,12 +108,12 @@ export async function conversationRouter(app: FastifyInstance): Promise<void> {
       summary: 'Message Batch',
       description: 'Handle conversation messages with batch JSON response',
       tags: ['conversation'],
-      body: conversationBodySchema,
+      body: ConversationInvokeEngineDtoSchema,
       response: {
         200: {
           content: {
             'application/json': {
-              schema: z.array(z.unknown()),
+              schema: z.array(ConversationMessageActionDtoSchema),
             },
           },
         },
@@ -143,9 +128,7 @@ export async function conversationRouter(app: FastifyInstance): Promise<void> {
       return reply.send([
         {
           engineEvent: {
-            state: 'processing',
-            flowId: 'flow-123',
-            nodeId: 'node-456',
+            state: ConversationMessageEngineEventState.ProcessingStarted,
           },
         },
         {
@@ -170,9 +153,7 @@ export async function conversationRouter(app: FastifyInstance): Promise<void> {
         },
         {
           engineEvent: {
-            state: 'completed',
-            flowId: 'flow-123',
-            nodeId: 'node-456',
+            state: ConversationMessageEngineEventState.ProcessingCompleted,
             elapsedTime: 100,
           },
         },

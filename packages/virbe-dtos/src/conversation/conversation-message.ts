@@ -1,8 +1,9 @@
-import { z } from 'zod';
-import { ParticipantTypeSchema } from './conversation-participant-type';
-import { ConversationMessageEngineEventState } from './conversation-message-engine-event-state';
-import { FlowEventType } from '../conversation-flow';
-import { FlowEventStatus } from '../conversation-flow';
+import {z} from 'zod';
+import {ParticipantTypeSchema} from './conversation-participant-type';
+import {ConversationMessageEngineEventState} from './conversation-message-engine-event-state';
+import {FlowEventStatus, FlowEventType} from '../conversation-flow';
+import {ProfileBasicResponseDtoSchema} from "../profile";
+import {ConversationBasicDtoSchema} from "./conversation";
 
 export const ConversationMessageSignalDtoSchema = z.object({
   name: z.string(),
@@ -193,13 +194,29 @@ export type ConversationMessageDto = z.infer<
   typeof ConversationMessageDtoSchema
 >;
 
-export const ConversationMessageCreateDtoSchema = z.object({
-  senderId: z.string(),
-  senderType: ParticipantTypeSchema.optional(),
+export const ConversationMessageAsyncCreateDtoSchema = z.object({
+  participantId: z.string(),
+  participantType: ParticipantTypeSchema.optional(),
   replyTo: z.string().uuid().optional(),
   action: ConversationMessageActionDtoSchema,
 });
 
-export type ConversationMessageCreateDto = z.infer<
-  typeof ConversationMessageCreateDtoSchema
+export type ConversationMessageAsyncCreateDto = z.infer<
+  typeof ConversationMessageAsyncCreateDtoSchema
+>;
+
+export const ConversationInvokeEngineDtoSchema = z.object({
+  id: z.string().uuid(),
+  conversationId: z.string().uuid(),
+  participantId: z.string().uuid(),
+  participantType: ParticipantTypeSchema,
+  action: ConversationMessageActionDtoSchema,
+  instant: z.coerce.date(),
+  profile: ProfileBasicResponseDtoSchema.optional(),
+  conversation: ConversationBasicDtoSchema.optional(),
+  language: z.string(),
+});
+
+export type ConversationInvokeEngineDto = z.infer<
+  typeof ConversationInvokeEngineDtoSchema
 >;
